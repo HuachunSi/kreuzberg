@@ -2,15 +2,13 @@
 
 package dev.kreuzberg
 
+import dev.kreuzberg.KreuzbergRs as Bridge
+import java.nio.file.Path
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
-import java.nio.file.Path
-import dev.kreuzberg.KreuzbergRs as Bridge
 
 object Kreuzberg {
-    init {
-        System.loadLibrary("kreuzberg_ffi")
-    }
+    init { System.loadLibrary("kreuzberg_ffi") }
 
     /**
      * Extract content from a byte array.
@@ -372,4 +370,5 @@ object Kreuzberg {
 
         return Bridge.listEmbeddingPresets()
     }
+
 }
