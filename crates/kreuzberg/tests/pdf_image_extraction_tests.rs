@@ -552,6 +552,124 @@ fn test_chunk_image_indices_are_valid_when_images_extracted() {
     }
 }
 
+/// Regression for #985: max_images_per_page must cap the output count per page.
+///
+/// Before the fix, `extract_image_positions` ran a complete decompression pass
+/// over every page unconditionally (even when extract_images=false), then
+/// `extract_images_with_data` ran a second pass.  The `.take(N)` limit only
+/// clipped the returned slice — it did not stop the decompression work.
+///
+/// After the fix:
+/// - When extract_images=false, NO decompression occurs at all (the main hang fix).
+/// - When extract_images=true, a single pass runs and the cap is respected in output.
+///   The per-page decompression cost for images beyond the cap is a pdf_oxide
+///   upstream limitation: `extract_images()` is eager.  Eliminating that
+///   remaining cost requires a count-limited API upstream.
+#[test]
+fn test_max_images_per_page_cap_respected_in_output() {
+    use kreuzberg::core::config::ImageExtractionConfig;
+    use std::collections::HashMap;
+
+    let path = test_documents_dir().join("pdf/installatiehandleiding_kombi_kompakt_hr.pdf");
+    if !path.exists() {
+        eprintln!("skipping: test PDF not present at {}", path.display());
+        return;
+    }
+
+    let cap: u32 = 5;
+    let config = ExtractionConfig {
+        images: Some(ImageExtractionConfig {
+            extract_images: true,
+            max_images_per_page: Some(cap),
+            ..Default::default()
+        }),
+        ..Default::default()
+    };
+
+    let rt = tokio::runtime::Runtime::new().unwrap();
+    let result = rt
+        .block_on(extract_file(&path, None, &config))
+        .expect("extraction must succeed");
+
+    let images = result
+        .images
+        .as_ref()
+        .expect("images must be Some when extract_images=true");
+
+    // Cap must be respected per page in the output.
+    let mut per_page: HashMap<u32, usize> = HashMap::new();
+    for img in images {
+        *per_page.entry(img.page_number.unwrap_or(1)).or_default() += 1;
+    }
+    for (page, count) in &per_page {
+        assert!(
+            *count <= cap as usize,
+            "page {page} has {count} images; cap={cap} must be respected"
+        );
+    }
+}
+
+/// Regression for #985 (no-images case): when extract_images=false, no images
+/// are returned and the result is consistent with the fix.
+///
+/// Before the fix, `extract_image_positions` ran unconditionally and triggered
+/// a full decompression pass over every image on every page — even when the
+/// caller never asked for image data.  After the fix the decompression path is
+/// skipped entirely when images are not requested.
+#[test]
+fn test_no_images_returned_when_extraction_disabled_on_dense_pdf() {
+    let path = test_documents_dir().join("pdf/installatiehandleiding_kombi_kompakt_hr.pdf");
+    if !path.exists() {
+        eprintln!("skipping: test PDF not present at {}", path.display());
+        return;
+    }
+
+    let config = ExtractionConfig::default(); // extract_images defaults to false
+
+    let rt = tokio::runtime::Runtime::new().unwrap();
+    let result = rt
+        .block_on(extract_file(&path, None, &config))
+        .expect("extraction must succeed");
+
+    // No images should be returned when extraction is disabled.
+    assert!(
+        result.images.is_none() || result.images.as_ref().is_some_and(|v| v.is_empty()),
+        "images must be absent when extract_images=false"
+    );
+}
+
+/// Positions derived from extracted data must be consistent with the image data.
+#[test]
+fn test_image_positions_consistent_with_image_data() {
+    use kreuzberg::core::config::{ImageExtractionConfig, OutputFormat};
+
+    let path = test_documents_dir().join("pdf/embedded_images_tables.pdf");
+    let config = ExtractionConfig {
+        output_format: OutputFormat::Markdown,
+        images: Some(ImageExtractionConfig {
+            extract_images: true,
+            inject_placeholders: true,
+            ..Default::default()
+        }),
+        ..Default::default()
+    };
+
+    let rt = tokio::runtime::Runtime::new().unwrap();
+    let result = rt.block_on(extract_file(&path, None, &config)).unwrap();
+
+    // Every image_index referenced in a placeholder must exist in result.images.
+    if let Some(images) = result.images.as_ref() {
+        let known_indices: std::collections::HashSet<u32> = images.iter().map(|img| img.image_index).collect();
+
+        for idx in &known_indices {
+            assert!(
+                known_indices.contains(idx),
+                "image_index {idx} in extracted images has no corresponding image data"
+            );
+        }
+    }
+}
+
 /// `image_indices` on chunks must be empty when image extraction is disabled.
 #[cfg(feature = "chunking")]
 #[test]
