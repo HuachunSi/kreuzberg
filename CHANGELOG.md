@@ -170,6 +170,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   is empty. When alt text is present, it is still emitted so user-visible
   content is preserved.
 
+- **PDF image extraction hang on dense pages (#985)**: `extract_image_positions`
+  previously ran a full decompression pass over every page unconditionally — even
+  when `extract_images=false` — causing multi-minute hangs on PDFs with many image
+  objects per page (e.g. InDesign/Acrobat exports). The pre-pass is eliminated;
+  image positions are now derived from the capped extraction result, so the
+  decompression path is skipped entirely when images are not requested. Also adds
+  cancellation-token support inside `extract_images_with_data` so
+  `extraction_timeout_secs` can interrupt multi-page extraction between pages.
+
 - **Email encoding data corruption (#910)**: replaced brittle 4-byte heuristic
   for UTF-16 detection in `EmailExtractor` with a robust statistical approach
   using `chardetng`. Tiny 4-byte ASCII files (e.g., binary sequences with

@@ -4,6 +4,7 @@
 //! actual image data and metadata.
 
 use super::OxideDocument;
+use crate::cancellation::CancellationToken;
 use crate::pdf::error::{PdfError, Result};
 use bytes::Bytes;
 use std::borrow::Cow;
@@ -25,7 +26,7 @@ use std::borrow::Cow;
 pub(crate) fn extract_images_with_data(
     doc: &mut OxideDocument,
     max_images_per_page: Option<u32>,
-    cancel_token: Option<&crate::cancellation::CancellationToken>,
+    cancel_token: Option<&CancellationToken>,
 ) -> Result<Vec<crate::types::ExtractedImage>> {
     let page_count = doc
         .doc
@@ -88,4 +89,44 @@ pub(crate) fn extract_images_with_data(
     }
 
     Ok(all_images)
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::cancellation::CancellationToken;
+    use std::path::PathBuf;
+
+    fn test_documents_dir() -> PathBuf {
+        PathBuf::from(env!("CARGO_MANIFEST_DIR"))
+            .parent()
+            .unwrap()
+            .parent()
+            .unwrap()
+            .join("test_documents")
+    }
+
+    #[test]
+    fn test_cancellation_stops_extraction_early() {
+        let pdf_path = test_documents_dir().join("pdf/embedded_images_tables.pdf");
+        if !pdf_path.exists() {
+            eprintln!("SKIP: test PDF not found at {}", pdf_path.display());
+            return;
+        }
+
+        let bytes = std::fs::read(&pdf_path).expect("failed to read test PDF");
+        let mut doc = crate::pdf::oxide::OxideDocument::open_bytes(&bytes).expect("failed to open PDF");
+
+        let token = CancellationToken::new();
+        token.cancel();
+
+        let result = extract_images_with_data(&mut doc, None, Some(&token)).expect("extract must not error");
+
+        assert!(
+            result.is_empty(),
+            "pre-cancelled token must cause extraction to return empty vec immediately, \
+             got {} image(s)",
+            result.len()
+        );
+    }
 }

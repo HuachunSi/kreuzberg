@@ -638,7 +638,12 @@ fn test_no_images_returned_when_extraction_disabled_on_dense_pdf() {
     );
 }
 
-/// Positions derived from extracted data must be consistent with the image data.
+/// Positions derived from extracted data must be consistent with the Markdown placeholders.
+///
+/// When inject_placeholders=true, the renderer emits `![](image_N.ext)` links where N
+/// is the image_index.  Every such N must have a corresponding entry in result.images.
+/// Also verifies that image_index values are unique — the derivation loop must not emit
+/// duplicate global indices.
 #[test]
 fn test_image_positions_consistent_with_image_data() {
     use kreuzberg::core::config::{ImageExtractionConfig, OutputFormat};
@@ -657,16 +662,33 @@ fn test_image_positions_consistent_with_image_data() {
     let rt = tokio::runtime::Runtime::new().unwrap();
     let result = rt.block_on(extract_file(&path, None, &config)).unwrap();
 
-    // Every image_index referenced in a placeholder must exist in result.images.
-    if let Some(images) = result.images.as_ref() {
-        let known_indices: std::collections::HashSet<u32> = images.iter().map(|img| img.image_index).collect();
+    let images = match result.images.as_ref() {
+        Some(imgs) if !imgs.is_empty() => imgs,
+        _ => return, // no images in this PDF — nothing to verify
+    };
 
-        for idx in &known_indices {
-            assert!(
-                known_indices.contains(idx),
-                "image_index {idx} in extracted images has no corresponding image data"
-            );
-        }
+    // image_index values must be unique across the returned set.
+    let mut seen = std::collections::HashSet::new();
+    for img in images {
+        assert!(
+            seen.insert(img.image_index),
+            "image_index {} appears more than once — position derivation emitted duplicates",
+            img.image_index
+        );
+    }
+
+    // Every `![](image_N.ext)` placeholder in Markdown must resolve to an index in
+    // result.images.  This would fail if inject_placeholders emitted a reference for
+    // an image that was never extracted (orphaned placeholder).
+    let known: std::collections::HashSet<u32> = images.iter().map(|i| i.image_index).collect();
+    let re = regex::Regex::new(r"!\[\]\(image_(\d+)\.[a-z]+\)").unwrap();
+    for cap in re.captures_iter(&result.content) {
+        let idx: u32 = cap[1].parse().unwrap();
+        assert!(
+            known.contains(&idx),
+            "Markdown contains `![](image_{idx}.ext)` but result.images has no entry \
+             with image_index={idx} — orphaned placeholder"
+        );
     }
 }
 
