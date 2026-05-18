@@ -109,10 +109,11 @@ mod tests {
     #[test]
     fn test_cancellation_stops_extraction_early() {
         let pdf_path = test_documents_dir().join("pdf/embedded_images_tables.pdf");
-        if !pdf_path.exists() {
-            eprintln!("SKIP: test PDF not found at {}", pdf_path.display());
-            return;
-        }
+        assert!(
+            pdf_path.exists(),
+            "missing fixture: test PDF not found at {}",
+            pdf_path.display()
+        );
 
         let bytes = std::fs::read(&pdf_path).expect("failed to read test PDF");
         let mut doc = crate::pdf::oxide::OxideDocument::open_bytes(&bytes).expect("failed to open PDF");

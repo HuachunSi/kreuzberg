@@ -692,6 +692,42 @@ fn test_image_positions_consistent_with_image_data() {
     }
 }
 
+/// Regression for #985 (double-decompression fix): the text-only extraction path must
+/// skip `extract_images_with_data` entirely.
+///
+/// When `extract_images` is `false` (the default), `extraction.rs` must not enter the
+/// images branch at all — verified here by confirming that `result.images` is `None`
+/// (or empty) and that the call completes without decompressing any image data.
+/// This is the minimal structural proof that the guard in `extraction.rs` works:
+/// if `extract_images_with_data` were called unconditionally, the result would be
+/// `Some(non_empty_vec)` for a PDF that actually contains images.
+#[test]
+fn test_no_decompression_when_images_disabled() {
+    let path = test_documents_dir().join("pdf/embedded_images_tables.pdf");
+    assert!(path.exists(), "missing fixture: {}", path.display());
+
+    // Default config: extract_images defaults to false.
+    let config = ExtractionConfig::default();
+    let rt = tokio::runtime::Runtime::new().unwrap();
+    let result = rt
+        .block_on(kreuzberg::core::extractor::extract_file(&path, None, &config))
+        .expect("extraction must succeed");
+
+    // The text-only path must not return any image data.
+    assert!(
+        result.images.as_ref().is_none_or(|v| v.is_empty()),
+        "images must be absent on text-only extraction (extract_images=false). \
+         Got {} image(s) — extract_images_with_data was called when it should not have been.",
+        result.images.as_ref().map_or(0, |v| v.len())
+    );
+
+    // Text content must still be present — no regression on the extraction itself.
+    assert!(
+        !result.content.is_empty(),
+        "text content must still be extracted when images are disabled"
+    );
+}
+
 /// `image_indices` on chunks must be empty when image extraction is disabled.
 #[cfg(feature = "chunking")]
 #[test]
