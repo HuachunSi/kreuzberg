@@ -502,6 +502,15 @@ types = [
   "kreuzberg::extraction::docx::parser::HeaderFooter",
   "kreuzberg::extraction::docx::parser::Note",
   "kreuzberg::extraction::hwp::model::Section",
+
+  # Internal archive extractor type — file_list uses ArchiveEntry which lacks Serialize.
+  # The public API type is kreuzberg::ArchiveMetadata (from types::metadata, file_list: Vec<String>).
+  "kreuzberg::extraction::archive::ArchiveMetadata",
+  "kreuzberg::extraction::archive::ArchiveEntry",
+
+  # Internal OCR processing type — different from kreuzberg::TesseractConfig (types::formats).
+  # alef 0.16.71 now resolves both; exclude the internal one to avoid mismatched-type FFI errors.
+  "kreuzberg::ocr::TesseractConfig",
 ]
 functions = [
   # Trait-bridge `register_*`/`unregister_*` functions — `gen_trait_bridge`

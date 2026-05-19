@@ -849,9 +849,9 @@ pub const PostProcessorConfig = struct {
     /// Blacklist of processor names to skip (None = none disabled)
     disabled_processors: ?[]const []const u8,
     /// Pre-computed AHashSet for O(1) enabled processor lookup
-    enabled_set: ?[]const u8,
+    enabled_set: ?[]const []const u8,
     /// Pre-computed AHashSet for O(1) disabled processor lookup
-    disabled_set: ?[]const u8,
+    disabled_set: ?[]const []const u8,
 };
 
 /// Chunking configuration.
@@ -1046,6 +1046,11 @@ pub const StructuredDataResult = struct {
     format: []const u8,
     metadata: std.StringHashMap([]const u8),
     text_fields: []const []const u8,
+};
+
+/// Column widths from `<w:tblGrid>`.
+pub const TableTableGrid = struct {
+    columns: []const i32,
 };
 
 /// Application properties from docProps/app.xml for DOCX
@@ -1386,7 +1391,7 @@ pub const DocumentNode = struct {
     /// Deterministic identifier (hash of content + position).
     id: []const u8,
     /// Node content — tagged enum, type-specific data only.
-    content: NodeContent,
+    content: []const u8,
     /// Parent node index (`null` = root-level node).
     parent: ?u32,
     /// Child node indices in reading order.
@@ -1464,7 +1469,7 @@ pub const ExtractionResult = struct {
     ///
     /// Populated when the extractor can reliably distinguish native text extraction,
     /// OCR-only extraction, or mixed native/OCR output.
-    extraction_method: ?ExtractionMethod,
+    extraction_method: ?[]const u8,
     tables: []const Table,
     detected_languages: ?[]const []const u8,
     /// Text chunks when chunking is enabled.
@@ -2142,7 +2147,7 @@ pub const Metadata = struct {
     ///
     /// Contains detailed metadata specific to the document format.
     /// Serialized as a nested `"format"` object with a `format_type` discriminator field.
-    format: ?FormatMetadata,
+    format: ?[]const u8,
     /// Image preprocessing metadata (when OCR preprocessing was applied)
     image_preprocessing: ?ImagePreprocessingMetadata,
     /// JSON schema (for structured data extraction)
@@ -2809,7 +2814,7 @@ pub const DetectResponse = struct {
 ///
 /// All string fields are owned `String` for FFI compatibility — instances
 /// are safe to clone and pass across language boundaries.
-pub const EmbeddingPreset = struct {
+pub const EmbeddingPreset2 = struct {
     name: []const u8,
     chunk_size: u64,
     overlap: u64,
@@ -2876,6 +2881,21 @@ pub const Keyword = struct {
     algorithm: KeywordAlgorithm,
     /// Optional positions where keyword appears in text (character offsets).
     positions: ?[]const u64,
+};
+
+/// OCR extraction result
+pub const ExtractionResult2 = struct {
+    content: []const u8,
+    mime_type: []const u8,
+    metadata: std.StringHashMap([]const u8),
+    tables: []const Table,
+};
+
+/// Extracted table from OCR
+pub const Table2 = struct {
+    cells: []const []const []const u8,
+    markdown: []const u8,
+    page_number: i32,
 };
 
 /// Configuration for PaddleOCR backend.
@@ -2951,7 +2971,7 @@ pub const BBox = struct {
 
 /// A single layout detection result.
 pub const LayoutDetection = struct {
-    class_name: LayoutClass,
+    class_name: []const u8,
     confidence: f32,
     bbox: BBox,
 };
@@ -3177,7 +3197,7 @@ pub const CodeContentMode = enum {
 };
 
 /// Type of list detection.
-pub const ListType = enum {
+pub const TransformListType = enum {
     /// Bullet points (-, *, •, etc.)
     bullet,
     /// Numbered lists (1., 2., etc.)
@@ -3346,7 +3366,7 @@ pub const ContentLayer = enum {
 ///
 /// Uses `#[serde(tag = "node_type")]` to avoid "type" keyword collision in
 /// Go/Java/TypeScript bindings.
-pub const NodeContent = union(enum) {
+pub const NodeContent2 = union(enum) {
     /// Document title.
     title: []const u8,
     /// Section heading with level (1-6).
@@ -3453,7 +3473,7 @@ pub const AnnotationKind = union(enum) {
 };
 
 /// How the extracted text was produced.
-pub const ExtractionMethod = enum {
+pub const ExtractionMethod2 = enum {
     native,
     ocr,
     mixed,
@@ -3564,7 +3584,7 @@ pub const ElementType = enum {
 ///
 /// Only one format type can exist per extraction result. This provides
 /// type-safe, clean metadata without nested optionals.
-pub const FormatMetadata = union(enum) {
+pub const FormatMetadata2 = union(enum) {
     pdf: PdfMetadata,
     docx: DocxMetadata,
     excel: ExcelMetadata,
@@ -3723,7 +3743,7 @@ pub const PSMMode = enum {
 /// Supported languages in PaddleOCR.
 ///
 /// Maps user-friendly language codes to paddle-ocr-rs language identifiers.
-pub const PaddleLanguage = enum {
+pub const PaddleLanguage2 = enum {
     /// English
     english,
     /// Simplified Chinese
@@ -3765,7 +3785,7 @@ pub const PaddleLanguage = enum {
 /// map to the closest equivalent.
 ///
 /// Wire format is snake_case in all serializers (JSON, TOML, YAML).
-pub const LayoutClass = enum {
+pub const LayoutClass2 = enum {
     caption,
     footnote,
     formula,
@@ -4387,15 +4407,14 @@ pub fn get_embedding_preset(name: []const u8) error{OutOfMemory}!?[]u8 {
         std.heap.c_allocator, "{s}", .{name}, 0);
     defer std.heap.c_allocator.free(name_z);
     const _result = c.kreuzberg_get_embedding_preset(name_z);
-    return if (_result == null) null else blk: {
-        const _json_ptr = c.kreuzberg_embedding_preset_to_json(_result.?);
-        defer _free_string(_json_ptr);
-        c.kreuzberg_embedding_preset_free(_result.?);
-        const slice = std.mem.sliceTo(_json_ptr, 0);
+    const _result_len = c.kreuzberg_get_embedding_preset_len(name_z);
+    return blk: {
+        if (_result == null) break :blk null;
+        const slice = _result[0.._result_len];
         const owned = try std.heap.c_allocator.dupe(u8, slice);
+        _free_string(_result);
         break :blk owned;
-    }
-;
+    };
 }
 
 /// List the names of all available embedding presets.

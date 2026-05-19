@@ -727,6 +727,9 @@ public typealias StructuredDataResult = RustBridge.StructuredDataResult
 /// Image metadata extracted from an image file.
 public typealias ExtractedImageMetadata = RustBridge.ExtractedImageMetadata
 
+/// Column widths from `<w:tblGrid>`.
+public typealias TableTableGrid = RustBridge.TableTableGrid
+
 /// Application properties from docProps/app.xml for DOCX
 ///
 /// Contains Word-specific document statistics and metadata.
@@ -1785,7 +1788,7 @@ public typealias DetectResponse = RustBridge.DetectResponse
 ///
 /// All string fields are owned `String` for FFI compatibility — instances
 /// are safe to clone and pass across language boundaries.
-public typealias EmbeddingPreset = RustBridge.EmbeddingPreset
+public typealias EmbeddingPreset2 = RustBridge.EmbeddingPreset2
 
 /// YAKE-specific parameters.
 public struct YakeParams: Codable, Sendable, Hashable {
@@ -1845,6 +1848,12 @@ public typealias KeywordConfig = RustBridge.KeywordConfig
 public typealias Keyword = RustBridge.Keyword
 
 public typealias OcrCacheStats = RustBridge.OcrCacheStats
+
+/// OCR extraction result
+public typealias ExtractionResult2 = RustBridge.ExtractionResult2
+
+/// Extracted table from OCR
+public typealias Table2 = RustBridge.Table2
 
 /// Configuration for PaddleOCR backend.
 ///
@@ -2153,7 +2162,7 @@ public enum CodeContentMode {
 }
 
 /// Type of list detection.
-public typealias ListType = RustBridge.ListType
+public typealias TransformListType = RustBridge.TransformListType
 
 /// Whether the drawing is inline or anchored.
 public enum DrawingType {
@@ -2308,7 +2317,7 @@ public enum ContentLayer {
 ///
 /// Uses `#[serde(tag = "node_type")]` to avoid "type" keyword collision in
 /// Go/Java/TypeScript bindings.
-public enum NodeContent {
+public enum NodeContent2 {
     /// Document title.
     case title(text: String)
     /// Section heading with level (1-6).
@@ -2380,7 +2389,7 @@ public enum AnnotationKind {
 }
 
 /// How the extracted text was produced.
-public enum ExtractionMethod {
+public enum ExtractionMethod2 {
     case native
     case ocr
     case mixed
@@ -2491,7 +2500,7 @@ public enum ElementType {
 ///
 /// Only one format type can exist per extraction result. This provides
 /// type-safe, clean metadata without nested optionals.
-public enum FormatMetadata {
+public enum FormatMetadata2 {
     case pdf(field0: PdfMetadata)
     case docx(field0: DocxMetadata)
     case excel(field0: ExcelMetadata)
@@ -2645,7 +2654,7 @@ public enum PSMMode {
 /// Supported languages in PaddleOCR.
 ///
 /// Maps user-friendly language codes to paddle-ocr-rs language identifiers.
-public enum PaddleLanguage {
+public enum PaddleLanguage2 {
     /// English
     case english
     /// Simplified Chinese
@@ -2687,7 +2696,7 @@ public enum PaddleLanguage {
 /// map to the closest equivalent.
 ///
 /// Wire format is snake_case in all serializers (JSON, TOML, YAML).
-public enum LayoutClass {
+public enum LayoutClass2 {
     case caption
     case footnote
     case formula
@@ -2948,8 +2957,4 @@ public func extractionResultFromJson(_ json: String) throws -> ExtractionResult 
 
 public func ocrExtractionResultFromJson(_ json: String) throws -> OcrExtractionResult {
     return try RustBridge.ocrExtractionResultFromJson(json)
-}
-
-public func htmlMetadataFromJson(_ json: String) throws -> HtmlMetadata {
-    return try RustBridge.htmlMetadataFromJson(json)
 }

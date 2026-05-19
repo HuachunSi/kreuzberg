@@ -434,7 +434,7 @@ typedef struct KREUZBERGEmbeddingModelType KREUZBERGEmbeddingModelType;
  * All string fields are owned `String` for FFI compatibility â instances
  * are safe to clone and pass across language boundaries.
  */
-typedef struct KREUZBERGEmbeddingPreset KREUZBERGEmbeddingPreset;
+typedef struct KREUZBERGEmbeddingPreset2 KREUZBERGEmbeddingPreset2;
 /**
  * EPUB metadata (Dublin Core extensions).
  */
@@ -502,13 +502,17 @@ typedef struct KREUZBERGExtractionConfig KREUZBERGExtractionConfig;
 /**
  * How the extracted text was produced.
  */
-typedef struct KREUZBERGExtractionMethod KREUZBERGExtractionMethod;
+typedef struct KREUZBERGExtractionMethod2 KREUZBERGExtractionMethod2;
 /**
  * General extraction result used by the core extraction API.
  *
  * This is the main result type returned by all extraction functions.
  */
 typedef struct KREUZBERGExtractionResult KREUZBERGExtractionResult;
+/**
+ * OCR extraction result
+ */
+typedef struct KREUZBERGExtractionResult2 KREUZBERGExtractionResult2;
 /**
  * FictionBook (FB2) metadata.
  */
@@ -550,7 +554,7 @@ typedef struct KREUZBERGFootnote KREUZBERGFootnote;
  * Only one format type can exist per extraction result. This provides
  * type-safe, clean metadata without nested optionals.
  */
-typedef struct KREUZBERGFormatMetadata KREUZBERGFormatMetadata;
+typedef struct KREUZBERGFormatMetadata2 KREUZBERGFormatMetadata2;
 /**
  * Block-level element in a Djot document.
  *
@@ -696,7 +700,7 @@ typedef struct KREUZBERGLanguageDetectionConfig KREUZBERGLanguageDetectionConfig
  *
  * Wire format is snake_case in all serializers (JSON, TOML, YAML).
  */
-typedef struct KREUZBERGLayoutClass KREUZBERGLayoutClass;
+typedef struct KREUZBERGLayoutClass2 KREUZBERGLayoutClass2;
 /**
  * A single layout detection result.
  */
@@ -725,10 +729,6 @@ typedef struct KREUZBERGLinkMetadata KREUZBERGLinkMetadata;
  * Link type classification.
  */
 typedef struct KREUZBERGLinkType KREUZBERGLinkType;
-/**
- * Type of list detection.
- */
-typedef struct KREUZBERGListType KREUZBERGListType;
 /**
  * Configuration for an LLM provider/model via liter-llm.
  *
@@ -766,7 +766,7 @@ typedef struct KREUZBERGModelPaths KREUZBERGModelPaths;
  * Uses `#[serde(tag = "node_type")]` to avoid "type" keyword collision in
  * Go/Java/TypeScript bindings.
  */
-typedef struct KREUZBERGNodeContent KREUZBERGNodeContent;
+typedef struct KREUZBERGNodeContent2 KREUZBERGNodeContent2;
 /**
  * Trait for OCR backend plugins.
  *
@@ -934,7 +934,7 @@ typedef struct KREUZBERGPSMMode KREUZBERGPSMMode;
  *
  * Maps user-friendly language codes to paddle-ocr-rs language identifiers.
  */
-typedef struct KREUZBERGPaddleLanguage KREUZBERGPaddleLanguage;
+typedef struct KREUZBERGPaddleLanguage2 KREUZBERGPaddleLanguage2;
 /**
  * Configuration for PaddleOCR backend.
  *
@@ -1311,6 +1311,10 @@ typedef struct KREUZBERGSupportedFormat KREUZBERGSupportedFormat;
  */
 typedef struct KREUZBERGTable KREUZBERGTable;
 /**
+ * Extracted table from OCR
+ */
+typedef struct KREUZBERGTable2 KREUZBERGTable2;
+/**
  * Individual table cell with content and optional styling.
  *
  * Future extension point for rich table support with cell-level metadata.
@@ -1330,6 +1334,10 @@ typedef struct KREUZBERGTableGrid KREUZBERGTableGrid;
  * YAML).
  */
 typedef struct KREUZBERGTableModel KREUZBERGTableModel;
+/**
+ * Column widths from `<w:tblGrid>`.
+ */
+typedef struct KREUZBERGTableTableGrid KREUZBERGTableTableGrid;
 /**
  * Tesseract OCR configuration.
  *
@@ -1368,6 +1376,10 @@ typedef struct KREUZBERGTokenReductionConfig KREUZBERGTokenReductionConfig;
  * Token reduction configuration.
  */
 typedef struct KREUZBERGTokenReductionOptions KREUZBERGTokenReductionOptions;
+/**
+ * Type of list detection.
+ */
+typedef struct KREUZBERGTransformListType KREUZBERGTransformListType;
 /**
  * Configuration for tree-sitter language pack integration.
  *
@@ -4036,6 +4048,20 @@ char *kreuzberg_post_processor_config_enabled_processors(const KREUZBERGPostProc
 char *kreuzberg_post_processor_config_disabled_processors(const KREUZBERGPostProcessorConfig *ptr);
 
 /**
+ * Get the `enabled_set` field from a `PostProcessorConfig`.
+ * # Safety
+ * Pointer must be a valid handle returned by this library.
+ */
+char *kreuzberg_post_processor_config_enabled_set(const KREUZBERGPostProcessorConfig *ptr);
+
+/**
+ * Get the `disabled_set` field from a `PostProcessorConfig`.
+ * # Safety
+ * Pointer must be a valid handle returned by this library.
+ */
+char *kreuzberg_post_processor_config_disabled_set(const KREUZBERGPostProcessorConfig *ptr);
+
+/**
  * \note SAFETY: Caller must ensure all pointer arguments are valid or null. Returned pointers must be
  * freed with the appropriate free function.
  */
@@ -4627,6 +4653,36 @@ char *kreuzberg_extracted_image_metadata_format(const KREUZBERGExtractedImageMet
  * Pointer must be a valid handle returned by this library.
  */
 char *kreuzberg_extracted_image_metadata_exif_data(const KREUZBERGExtractedImageMetadata *ptr);
+
+/**
+ * Create a `TableTableGrid` from a JSON string. Returns null on failure.
+ * # Safety
+ * JSON string must be valid UTF-8 and null-terminated.
+ * Returned handle must be freed with `kreuzberg_table_table_grid_free`.
+ */
+KREUZBERGTableGrid *kreuzberg_table_table_grid_from_json(const char *json);
+
+/**
+ * Serialize a `TableTableGrid` to a JSON string. Returns null on failure.
+ * # Safety
+ * `ptr` must be a valid, non-null pointer returned by a `kreuzberg` function.
+ * The returned string must be freed with `kreuzberg_free_string`.
+ */
+char *kreuzberg_table_table_grid_to_json(const KREUZBERGTableGrid *ptr);
+
+/**
+ * Free a `TableTableGrid` handle.
+ * # Safety
+ * Pointer must have been returned by this library, or be null.
+ */
+void kreuzberg_table_table_grid_free(KREUZBERGTableGrid *ptr);
+
+/**
+ * Get the `columns` field from a `TableTableGrid`.
+ * # Safety
+ * Pointer must be a valid handle returned by this library.
+ */
+char *kreuzberg_table_table_grid_columns(const KREUZBERGTableGrid *ptr);
 
 /**
  * Create a `DocxAppProperties` from a JSON string. Returns null on failure.
@@ -5818,13 +5874,6 @@ char *kreuzberg_document_node_to_json(const KREUZBERGDocumentNode *ptr);
 void kreuzberg_document_node_free(KREUZBERGDocumentNode *ptr);
 
 /**
- * Get the `content` field from a `DocumentNode`.
- * # Safety
- * Pointer must be a valid handle returned by this library.
- */
-KREUZBERGNodeContent *kreuzberg_document_node_content(const KREUZBERGDocumentNode *ptr);
-
-/**
  * Get the `parent` field from a `DocumentNode`.
  * # Safety
  * Pointer must be a valid handle returned by this library.
@@ -6062,13 +6111,6 @@ char *kreuzberg_extraction_result_content(const KREUZBERGExtractionResult *ptr);
  * Pointer must be a valid handle returned by this library.
  */
 KREUZBERGMetadata *kreuzberg_extraction_result_metadata(const KREUZBERGExtractionResult *ptr);
-
-/**
- * Get the `extraction_method` field from a `ExtractionResult`.
- * # Safety
- * Pointer must be a valid handle returned by this library.
- */
-KREUZBERGExtractionMethod *kreuzberg_extraction_result_extraction_method(const KREUZBERGExtractionResult *ptr);
 
 /**
  * Get the `tables` field from a `ExtractionResult`.
@@ -7826,13 +7868,6 @@ char *kreuzberg_metadata_modified_by(const KREUZBERGMetadata *ptr);
 KREUZBERGPageStructure *kreuzberg_metadata_pages(const KREUZBERGMetadata *ptr);
 
 /**
- * Get the `format` field from a `Metadata`.
- * # Safety
- * Pointer must be a valid handle returned by this library.
- */
-KREUZBERGFormatMetadata *kreuzberg_metadata_format(const KREUZBERGMetadata *ptr);
-
-/**
  * Get the `image_preprocessing` field from a `Metadata`.
  * # Safety
  * Pointer must be a valid handle returned by this library.
@@ -8554,12 +8589,6 @@ char *kreuzberg_html_metadata_images(const KREUZBERGHtmlMetadata *ptr);
  * Pointer must be a valid handle returned by this library.
  */
 char *kreuzberg_html_metadata_structured_data(const KREUZBERGHtmlMetadata *ptr);
-
-/**
- * \note SAFETY: Caller must ensure all pointer arguments are valid or null. Returned pointers must be
- * freed with the appropriate free function.
- */
-KREUZBERGHtmlMetadata *kreuzberg_html_metadata_from(const KREUZBERGHtmlMetadata *metadata);
 
 /**
  * Create a `OcrMetadata` from a JSON string. Returns null on failure.
@@ -10043,83 +10072,83 @@ char *kreuzberg_detect_response_mime_type(const KREUZBERGDetectResponse *ptr);
 char *kreuzberg_detect_response_filename(const KREUZBERGDetectResponse *ptr);
 
 /**
- * Create a `EmbeddingPreset` from a JSON string. Returns null on failure.
+ * Create a `EmbeddingPreset2` from a JSON string. Returns null on failure.
  * # Safety
  * JSON string must be valid UTF-8 and null-terminated.
- * Returned handle must be freed with `kreuzberg_embedding_preset_free`.
+ * Returned handle must be freed with `kreuzberg_embedding_preset2_free`.
  */
-KREUZBERGEmbeddingPreset *kreuzberg_embedding_preset_from_json(const char *json);
+KREUZBERGEmbeddingPreset *kreuzberg_embedding_preset2_from_json(const char *json);
 
 /**
- * Serialize a `EmbeddingPreset` to a JSON string. Returns null on failure.
+ * Serialize a `EmbeddingPreset2` to a JSON string. Returns null on failure.
  * # Safety
  * `ptr` must be a valid, non-null pointer returned by a `kreuzberg` function.
  * The returned string must be freed with `kreuzberg_free_string`.
  */
-char *kreuzberg_embedding_preset_to_json(const KREUZBERGEmbeddingPreset *ptr);
+char *kreuzberg_embedding_preset2_to_json(const KREUZBERGEmbeddingPreset *ptr);
 
 /**
- * Free a `EmbeddingPreset` handle.
+ * Free a `EmbeddingPreset2` handle.
  * # Safety
  * Pointer must have been returned by this library, or be null.
  */
-void kreuzberg_embedding_preset_free(KREUZBERGEmbeddingPreset *ptr);
+void kreuzberg_embedding_preset2_free(KREUZBERGEmbeddingPreset *ptr);
 
 /**
- * Get the `name` field from a `EmbeddingPreset`.
+ * Get the `name` field from a `EmbeddingPreset2`.
  * # Safety
  * Pointer must be a valid handle returned by this library.
  */
-char *kreuzberg_embedding_preset_name(const KREUZBERGEmbeddingPreset *ptr);
+char *kreuzberg_embedding_preset2_name(const KREUZBERGEmbeddingPreset *ptr);
 
 /**
- * Get the `chunk_size` field from a `EmbeddingPreset`.
+ * Get the `chunk_size` field from a `EmbeddingPreset2`.
  * # Safety
  * Pointer must be a valid handle returned by this library.
  */
-uintptr_t kreuzberg_embedding_preset_chunk_size(const KREUZBERGEmbeddingPreset *ptr);
+uintptr_t kreuzberg_embedding_preset2_chunk_size(const KREUZBERGEmbeddingPreset *ptr);
 
 /**
- * Get the `overlap` field from a `EmbeddingPreset`.
+ * Get the `overlap` field from a `EmbeddingPreset2`.
  * # Safety
  * Pointer must be a valid handle returned by this library.
  */
-uintptr_t kreuzberg_embedding_preset_overlap(const KREUZBERGEmbeddingPreset *ptr);
+uintptr_t kreuzberg_embedding_preset2_overlap(const KREUZBERGEmbeddingPreset *ptr);
 
 /**
- * Get the `model_repo` field from a `EmbeddingPreset`.
+ * Get the `model_repo` field from a `EmbeddingPreset2`.
  * # Safety
  * Pointer must be a valid handle returned by this library.
  */
-char *kreuzberg_embedding_preset_model_repo(const KREUZBERGEmbeddingPreset *ptr);
+char *kreuzberg_embedding_preset2_model_repo(const KREUZBERGEmbeddingPreset *ptr);
 
 /**
- * Get the `pooling` field from a `EmbeddingPreset`.
+ * Get the `pooling` field from a `EmbeddingPreset2`.
  * # Safety
  * Pointer must be a valid handle returned by this library.
  */
-char *kreuzberg_embedding_preset_pooling(const KREUZBERGEmbeddingPreset *ptr);
+char *kreuzberg_embedding_preset2_pooling(const KREUZBERGEmbeddingPreset *ptr);
 
 /**
- * Get the `model_file` field from a `EmbeddingPreset`.
+ * Get the `model_file` field from a `EmbeddingPreset2`.
  * # Safety
  * Pointer must be a valid handle returned by this library.
  */
-char *kreuzberg_embedding_preset_model_file(const KREUZBERGEmbeddingPreset *ptr);
+char *kreuzberg_embedding_preset2_model_file(const KREUZBERGEmbeddingPreset *ptr);
 
 /**
- * Get the `dimensions` field from a `EmbeddingPreset`.
+ * Get the `dimensions` field from a `EmbeddingPreset2`.
  * # Safety
  * Pointer must be a valid handle returned by this library.
  */
-uintptr_t kreuzberg_embedding_preset_dimensions(const KREUZBERGEmbeddingPreset *ptr);
+uintptr_t kreuzberg_embedding_preset2_dimensions(const KREUZBERGEmbeddingPreset *ptr);
 
 /**
- * Get the `description` field from a `EmbeddingPreset`.
+ * Get the `description` field from a `EmbeddingPreset2`.
  * # Safety
  * Pointer must be a valid handle returned by this library.
  */
-char *kreuzberg_embedding_preset_description(const KREUZBERGEmbeddingPreset *ptr);
+char *kreuzberg_embedding_preset2_description(const KREUZBERGEmbeddingPreset *ptr);
 
 /**
  * Create a `YakeParams` from a JSON string. Returns null on failure.
@@ -10342,6 +10371,101 @@ uintptr_t kreuzberg_ocr_cache_stats_total_files(const KREUZBERGOcrCacheStats *pt
  * Pointer must be a valid handle returned by this library.
  */
 double kreuzberg_ocr_cache_stats_total_size_mb(const KREUZBERGOcrCacheStats *ptr);
+
+/**
+ * Create a `ExtractionResult2` from a JSON string. Returns null on failure.
+ * # Safety
+ * JSON string must be valid UTF-8 and null-terminated.
+ * Returned handle must be freed with `kreuzberg_extraction_result2_free`.
+ */
+KREUZBERGExtractionResult *kreuzberg_extraction_result2_from_json(const char *json);
+
+/**
+ * Serialize a `ExtractionResult2` to a JSON string. Returns null on failure.
+ * # Safety
+ * `ptr` must be a valid, non-null pointer returned by a `kreuzberg` function.
+ * The returned string must be freed with `kreuzberg_free_string`.
+ */
+char *kreuzberg_extraction_result2_to_json(const KREUZBERGExtractionResult *ptr);
+
+/**
+ * Free a `ExtractionResult2` handle.
+ * # Safety
+ * Pointer must have been returned by this library, or be null.
+ */
+void kreuzberg_extraction_result2_free(KREUZBERGExtractionResult *ptr);
+
+/**
+ * Get the `content` field from a `ExtractionResult2`.
+ * # Safety
+ * Pointer must be a valid handle returned by this library.
+ */
+char *kreuzberg_extraction_result2_content(const KREUZBERGExtractionResult *ptr);
+
+/**
+ * Get the `mime_type` field from a `ExtractionResult2`.
+ * # Safety
+ * Pointer must be a valid handle returned by this library.
+ */
+char *kreuzberg_extraction_result2_mime_type(const KREUZBERGExtractionResult *ptr);
+
+/**
+ * Get the `metadata` field from a `ExtractionResult2`.
+ * # Safety
+ * Pointer must be a valid handle returned by this library.
+ */
+char *kreuzberg_extraction_result2_metadata(const KREUZBERGExtractionResult *ptr);
+
+/**
+ * Get the `tables` field from a `ExtractionResult2`.
+ * # Safety
+ * Pointer must be a valid handle returned by this library.
+ */
+char *kreuzberg_extraction_result2_tables(const KREUZBERGExtractionResult *ptr);
+
+/**
+ * Create a `Table2` from a JSON string. Returns null on failure.
+ * # Safety
+ * JSON string must be valid UTF-8 and null-terminated.
+ * Returned handle must be freed with `kreuzberg_table2_free`.
+ */
+KREUZBERGTable *kreuzberg_table2_from_json(const char *json);
+
+/**
+ * Serialize a `Table2` to a JSON string. Returns null on failure.
+ * # Safety
+ * `ptr` must be a valid, non-null pointer returned by a `kreuzberg` function.
+ * The returned string must be freed with `kreuzberg_free_string`.
+ */
+char *kreuzberg_table2_to_json(const KREUZBERGTable *ptr);
+
+/**
+ * Free a `Table2` handle.
+ * # Safety
+ * Pointer must have been returned by this library, or be null.
+ */
+void kreuzberg_table2_free(KREUZBERGTable *ptr);
+
+/**
+ * Get the `cells` field from a `Table2`.
+ * # Safety
+ * Pointer must be a valid handle returned by this library.
+ */
+char *kreuzberg_table2_cells(const KREUZBERGTable *ptr);
+
+/**
+ * Get the `markdown` field from a `Table2`.
+ * # Safety
+ * Pointer must be a valid handle returned by this library.
+ */
+char *kreuzberg_table2_markdown(const KREUZBERGTable *ptr);
+
+/**
+ * Get the `page_number` field from a `Table2`.
+ * # Safety
+ * Pointer must be a valid handle returned by this library.
+ */
+int32_t kreuzberg_table2_page_number(const KREUZBERGTable *ptr);
 
 /**
  * Create a `PaddleOcrConfig` from a JSON string. Returns null on failure.
@@ -10733,13 +10857,6 @@ char *kreuzberg_layout_detection_to_json(const KREUZBERGLayoutDetection *ptr);
 void kreuzberg_layout_detection_free(KREUZBERGLayoutDetection *ptr);
 
 /**
- * Get the `class_name` field from a `LayoutDetection`.
- * # Safety
- * Pointer must be a valid handle returned by this library.
- */
-KREUZBERGLayoutClass *kreuzberg_layout_detection_class_name(const KREUZBERGLayoutDetection *ptr);
-
-/**
  * Get the `confidence` field from a `LayoutDetection`.
  * # Safety
  * Pointer must be a valid handle returned by this library.
@@ -11072,19 +11189,19 @@ int32_t kreuzberg_code_content_mode_from_i32(int32_t value);
 int32_t kreuzberg_code_content_mode_from_str(const char *name);
 
 /**
- * Convert an integer to a `ListType` variant. Returns -1 on invalid input.
+ * Convert an integer to a `TransformListType` variant. Returns -1 on invalid input.
  * # Safety
  * Caller must ensure all pointer arguments are valid or null.
  * Returned pointers must be freed with the appropriate free function.
  */
-int32_t kreuzberg_list_type_from_i32(int32_t value);
+int32_t kreuzberg_transform_list_type_from_i32(int32_t value);
 
 /**
- * Convert a `ListType` variant name (C string) to its integer value. Returns -1 on invalid input.
+ * Convert a `TransformListType` variant name (C string) to its integer value. Returns -1 on invalid input.
  * # Safety
  * Caller must ensure `ptr` is a valid pointer to a `c_char` or null.
  */
-int32_t kreuzberg_list_type_from_str(const char *name);
+int32_t kreuzberg_transform_list_type_from_str(const char *name);
 
 /**
  * Convert an integer to a `DrawingType` variant. Returns -1 on invalid input.
@@ -11237,19 +11354,19 @@ int32_t kreuzberg_content_layer_from_i32(int32_t value);
 int32_t kreuzberg_content_layer_from_str(const char *name);
 
 /**
- * Convert an integer to a `NodeContent` variant. Returns -1 on invalid input.
+ * Convert an integer to a `NodeContent2` variant. Returns -1 on invalid input.
  * # Safety
  * Caller must ensure all pointer arguments are valid or null.
  * Returned pointers must be freed with the appropriate free function.
  */
-int32_t kreuzberg_node_content_from_i32(int32_t value);
+int32_t kreuzberg_node_content2_from_i32(int32_t value);
 
 /**
- * Convert a `NodeContent` variant name (C string) to its integer value. Returns -1 on invalid input.
+ * Convert a `NodeContent2` variant name (C string) to its integer value. Returns -1 on invalid input.
  * # Safety
  * Caller must ensure `ptr` is a valid pointer to a `c_char` or null.
  */
-int32_t kreuzberg_node_content_from_str(const char *name);
+int32_t kreuzberg_node_content2_from_str(const char *name);
 
 /**
  * Convert an integer to a `AnnotationKind` variant. Returns -1 on invalid input.
@@ -11267,19 +11384,19 @@ int32_t kreuzberg_annotation_kind_from_i32(int32_t value);
 int32_t kreuzberg_annotation_kind_from_str(const char *name);
 
 /**
- * Convert an integer to a `ExtractionMethod` variant. Returns -1 on invalid input.
+ * Convert an integer to a `ExtractionMethod2` variant. Returns -1 on invalid input.
  * # Safety
  * Caller must ensure all pointer arguments are valid or null.
  * Returned pointers must be freed with the appropriate free function.
  */
-int32_t kreuzberg_extraction_method_from_i32(int32_t value);
+int32_t kreuzberg_extraction_method2_from_i32(int32_t value);
 
 /**
- * Convert a `ExtractionMethod` variant name (C string) to its integer value. Returns -1 on invalid input.
+ * Convert a `ExtractionMethod2` variant name (C string) to its integer value. Returns -1 on invalid input.
  * # Safety
  * Caller must ensure `ptr` is a valid pointer to a `c_char` or null.
  */
-int32_t kreuzberg_extraction_method_from_str(const char *name);
+int32_t kreuzberg_extraction_method2_from_str(const char *name);
 
 /**
  * Convert an integer to a `ChunkType` variant. Returns -1 on invalid input.
@@ -11342,19 +11459,19 @@ int32_t kreuzberg_element_type_from_i32(int32_t value);
 int32_t kreuzberg_element_type_from_str(const char *name);
 
 /**
- * Convert an integer to a `FormatMetadata` variant. Returns -1 on invalid input.
+ * Convert an integer to a `FormatMetadata2` variant. Returns -1 on invalid input.
  * # Safety
  * Caller must ensure all pointer arguments are valid or null.
  * Returned pointers must be freed with the appropriate free function.
  */
-int32_t kreuzberg_format_metadata_from_i32(int32_t value);
+int32_t kreuzberg_format_metadata2_from_i32(int32_t value);
 
 /**
- * Convert a `FormatMetadata` variant name (C string) to its integer value. Returns -1 on invalid input.
+ * Convert a `FormatMetadata2` variant name (C string) to its integer value. Returns -1 on invalid input.
  * # Safety
  * Caller must ensure `ptr` is a valid pointer to a `c_char` or null.
  */
-int32_t kreuzberg_format_metadata_from_str(const char *name);
+int32_t kreuzberg_format_metadata2_from_str(const char *name);
 
 /**
  * Convert an integer to a `TextDirection` variant. Returns -1 on invalid input.
@@ -11507,34 +11624,34 @@ int32_t kreuzberg_psm_mode_from_i32(int32_t value);
 int32_t kreuzberg_psm_mode_from_str(const char *name);
 
 /**
- * Convert an integer to a `PaddleLanguage` variant. Returns -1 on invalid input.
+ * Convert an integer to a `PaddleLanguage2` variant. Returns -1 on invalid input.
  * # Safety
  * Caller must ensure all pointer arguments are valid or null.
  * Returned pointers must be freed with the appropriate free function.
  */
-int32_t kreuzberg_paddle_language_from_i32(int32_t value);
+int32_t kreuzberg_paddle_language2_from_i32(int32_t value);
 
 /**
- * Convert a `PaddleLanguage` variant name (C string) to its integer value. Returns -1 on invalid input.
+ * Convert a `PaddleLanguage2` variant name (C string) to its integer value. Returns -1 on invalid input.
  * # Safety
  * Caller must ensure `ptr` is a valid pointer to a `c_char` or null.
  */
-int32_t kreuzberg_paddle_language_from_str(const char *name);
+int32_t kreuzberg_paddle_language2_from_str(const char *name);
 
 /**
- * Convert an integer to a `LayoutClass` variant. Returns -1 on invalid input.
+ * Convert an integer to a `LayoutClass2` variant. Returns -1 on invalid input.
  * # Safety
  * Caller must ensure all pointer arguments are valid or null.
  * Returned pointers must be freed with the appropriate free function.
  */
-int32_t kreuzberg_layout_class_from_i32(int32_t value);
+int32_t kreuzberg_layout_class2_from_i32(int32_t value);
 
 /**
- * Convert a `LayoutClass` variant name (C string) to its integer value. Returns -1 on invalid input.
+ * Convert a `LayoutClass2` variant name (C string) to its integer value. Returns -1 on invalid input.
  * # Safety
  * Caller must ensure `ptr` is a valid pointer to a `c_char` or null.
  */
-int32_t kreuzberg_layout_class_from_str(const char *name);
+int32_t kreuzberg_layout_class2_from_str(const char *name);
 
 /**
  * Free a heap-allocated `ExecutionProviderType` returned by a pointer-returning FFI function.
@@ -11887,31 +12004,6 @@ char *kreuzberg_content_layer_to_json(const KREUZBERGContentLayer *ptr);
 char *kreuzberg_content_layer_to_string(const KREUZBERGContentLayer *ptr);
 
 /**
- * Free a heap-allocated `NodeContent` returned by a pointer-returning FFI function.
- * # Safety
- * Pointer must have been returned by this library, or be null.
- */
-void kreuzberg_node_content_free(KREUZBERGNodeContent *ptr);
-
-/**
- * Serialize a heap-allocated `NodeContent` to a JSON string.
- * # Safety
- * `ptr` must be a valid, non-null pointer returned by a `kreuzberg` function.
- * The returned string must be freed with `kreuzberg_free_string`.
- */
-char *kreuzberg_node_content_to_json(const KREUZBERGNodeContent *ptr);
-
-/**
- * Render a heap-allocated `NodeContent` as its string representation
- * (the unit-variant name as serialized by serde — e.g. `"completed"`,
- * without surrounding JSON quotes).
- * # Safety
- * `ptr` must be a valid, non-null pointer returned by a `kreuzberg` function.
- * The returned string must be freed with `kreuzberg_free_string`.
- */
-char *kreuzberg_node_content_to_string(const KREUZBERGNodeContent *ptr);
-
-/**
  * Free a heap-allocated `AnnotationKind` returned by a pointer-returning FFI function.
  * # Safety
  * Pointer must have been returned by this library, or be null.
@@ -11935,31 +12027,6 @@ char *kreuzberg_annotation_kind_to_json(const KREUZBERGAnnotationKind *ptr);
  * The returned string must be freed with `kreuzberg_free_string`.
  */
 char *kreuzberg_annotation_kind_to_string(const KREUZBERGAnnotationKind *ptr);
-
-/**
- * Free a heap-allocated `ExtractionMethod` returned by a pointer-returning FFI function.
- * # Safety
- * Pointer must have been returned by this library, or be null.
- */
-void kreuzberg_extraction_method_free(KREUZBERGExtractionMethod *ptr);
-
-/**
- * Serialize a heap-allocated `ExtractionMethod` to a JSON string.
- * # Safety
- * `ptr` must be a valid, non-null pointer returned by a `kreuzberg` function.
- * The returned string must be freed with `kreuzberg_free_string`.
- */
-char *kreuzberg_extraction_method_to_json(const KREUZBERGExtractionMethod *ptr);
-
-/**
- * Render a heap-allocated `ExtractionMethod` as its string representation
- * (the unit-variant name as serialized by serde — e.g. `"completed"`,
- * without surrounding JSON quotes).
- * # Safety
- * `ptr` must be a valid, non-null pointer returned by a `kreuzberg` function.
- * The returned string must be freed with `kreuzberg_free_string`.
- */
-char *kreuzberg_extraction_method_to_string(const KREUZBERGExtractionMethod *ptr);
 
 /**
  * Free a heap-allocated `ChunkType` returned by a pointer-returning FFI function.
@@ -12060,31 +12127,6 @@ char *kreuzberg_element_type_to_json(const KREUZBERGElementType *ptr);
  * The returned string must be freed with `kreuzberg_free_string`.
  */
 char *kreuzberg_element_type_to_string(const KREUZBERGElementType *ptr);
-
-/**
- * Free a heap-allocated `FormatMetadata` returned by a pointer-returning FFI function.
- * # Safety
- * Pointer must have been returned by this library, or be null.
- */
-void kreuzberg_format_metadata_free(KREUZBERGFormatMetadata *ptr);
-
-/**
- * Serialize a heap-allocated `FormatMetadata` to a JSON string.
- * # Safety
- * `ptr` must be a valid, non-null pointer returned by a `kreuzberg` function.
- * The returned string must be freed with `kreuzberg_free_string`.
- */
-char *kreuzberg_format_metadata_to_json(const KREUZBERGFormatMetadata *ptr);
-
-/**
- * Render a heap-allocated `FormatMetadata` as its string representation
- * (the unit-variant name as serialized by serde — e.g. `"completed"`,
- * without surrounding JSON quotes).
- * # Safety
- * `ptr` must be a valid, non-null pointer returned by a `kreuzberg` function.
- * The returned string must be freed with `kreuzberg_free_string`.
- */
-char *kreuzberg_format_metadata_to_string(const KREUZBERGFormatMetadata *ptr);
 
 /**
  * Free a heap-allocated `TextDirection` returned by a pointer-returning FFI function.
@@ -12310,31 +12352,6 @@ char *kreuzberg_keyword_algorithm_to_json(const KREUZBERGKeywordAlgorithm *ptr);
  * The returned string must be freed with `kreuzberg_free_string`.
  */
 char *kreuzberg_keyword_algorithm_to_string(const KREUZBERGKeywordAlgorithm *ptr);
-
-/**
- * Free a heap-allocated `LayoutClass` returned by a pointer-returning FFI function.
- * # Safety
- * Pointer must have been returned by this library, or be null.
- */
-void kreuzberg_layout_class_free(KREUZBERGLayoutClass *ptr);
-
-/**
- * Serialize a heap-allocated `LayoutClass` to a JSON string.
- * # Safety
- * `ptr` must be a valid, non-null pointer returned by a `kreuzberg` function.
- * The returned string must be freed with `kreuzberg_free_string`.
- */
-char *kreuzberg_layout_class_to_json(const KREUZBERGLayoutClass *ptr);
-
-/**
- * Render a heap-allocated `LayoutClass` as its string representation
- * (the unit-variant name as serialized by serde — e.g. `"completed"`,
- * without surrounding JSON quotes).
- * # Safety
- * `ptr` must be a valid, non-null pointer returned by a `kreuzberg` function.
- * The returned string must be freed with `kreuzberg_free_string`.
- */
-char *kreuzberg_layout_class_to_string(const KREUZBERGLayoutClass *ptr);
 
 /**
  * Extract content from a byte array.
@@ -12933,7 +12950,16 @@ uintptr_t kreuzberg_embed_texts_len(const char *texts,
  * \note SAFETY: Caller must ensure all pointer arguments are valid or null. Returned pointers must be
  * freed with the appropriate free function.
  */
-KREUZBERGEmbeddingPreset *kreuzberg_get_embedding_preset(const char *name);
+char *kreuzberg_get_embedding_preset(const char *_name);
+
+/**
+ * Return the byte length of the C string that `kreuzberg_get_embedding_preset` would return for the
+ * same arguments, without allocating. Returns 0 when the underlying value is None or an error occurs.
+ * Enables safe slice construction in Zig and Java FFM Panama without a NUL-scan.
+ * \note SAFETY: All pointer parameters obey the same validity rules as
+ * `kreuzberg_get_embedding_preset`.
+ */
+uintptr_t kreuzberg_get_embedding_preset_len(const char *_name);
 
 /**
  * List the names of all available embedding presets.
