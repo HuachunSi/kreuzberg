@@ -728,6 +728,107 @@ fn test_no_decompression_when_images_disabled() {
     );
 }
 
+/// Trace-span assertion for #985: `extract_images_with_data` must NOT be entered
+/// when `extract_images` is false (the default).
+///
+/// This directly proves the decompression code path was skipped — complementing
+/// `test_no_decompression_when_images_disabled` which only observes the output.
+/// An event with target `kreuzberg::pdf::oxide::images` and field
+/// `event = "decompression_started"` is emitted at the top of
+/// `extract_images_with_data`; absence of that event is structural proof the
+/// function was not called.
+#[test]
+fn test_no_decompression_trace_when_images_disabled() {
+    use std::sync::{Arc, Mutex};
+    use tracing_subscriber::{EnvFilter, layer::SubscriberExt as _};
+
+    // ── Captured-event layer ────────────────────────────────────────────────
+
+    #[derive(Clone, Default)]
+    struct EventCapture {
+        events: Arc<Mutex<Vec<(String, Option<String>)>>>,
+    }
+
+    impl<S> tracing_subscriber::Layer<S> for EventCapture
+    where
+        S: tracing::Subscriber,
+    {
+        fn on_event(&self, event: &tracing::Event<'_>, _ctx: tracing_subscriber::layer::Context<'_, S>) {
+            let target = event.metadata().target().to_owned();
+
+            // Only record events from our target to avoid unbounded accumulation.
+            if target != "kreuzberg::pdf::oxide::images" {
+                return;
+            }
+
+            // Walk the fields to capture the `event` key if present.
+            struct FieldVisitor(Option<String>);
+            impl tracing::field::Visit for FieldVisitor {
+                fn record_str(&mut self, field: &tracing::field::Field, value: &str) {
+                    if field.name() == "event" {
+                        self.0 = Some(value.to_owned());
+                    }
+                }
+                fn record_debug(&mut self, field: &tracing::field::Field, value: &dyn std::fmt::Debug) {
+                    if field.name() == "event" {
+                        self.0 = Some(format!("{value:?}"));
+                    }
+                }
+            }
+
+            let mut visitor = FieldVisitor(None);
+            event.record(&mut visitor);
+
+            self.events.lock().unwrap().push((target, visitor.0));
+        }
+    }
+
+    // ── Test body ───────────────────────────────────────────────────────────
+
+    let path = test_documents_dir().join("pdf/embedded_images_tables.pdf");
+    assert!(path.exists(), "missing fixture: {}", path.display());
+
+    let capture = EventCapture::default();
+    let capture_clone = capture.clone();
+
+    // Enable DEBUG so the tracing event would be visible if the function ran.
+    let filter = EnvFilter::new("debug");
+    let subscriber = tracing_subscriber::registry().with(filter).with(capture_clone);
+
+    // Wrap the runtime inside with_default so all spans/events are recorded.
+    let result = tracing::subscriber::with_default(subscriber, || {
+        let config = ExtractionConfig::default(); // extract_images defaults to false
+        tokio::runtime::Builder::new_current_thread()
+            .enable_all()
+            .build()
+            .unwrap()
+            .block_on(kreuzberg::core::extractor::extract_file(&path, None, &config))
+            .expect("extraction must succeed")
+    });
+
+    // Output assertion: no image data returned.
+    assert!(
+        result.images.as_ref().is_none_or(|v| v.is_empty()),
+        "images must be absent when extract_images=false"
+    );
+
+    // Trace assertion: the decompression_started event must not have fired.
+    let events = capture.events.lock().unwrap();
+    let decompression_events: Vec<_> = events
+        .iter()
+        .filter(|(target, event_field)| {
+            target == "kreuzberg::pdf::oxide::images" && event_field.as_deref() == Some("decompression_started")
+        })
+        .collect();
+
+    assert!(
+        decompression_events.is_empty(),
+        "extract_images_with_data must not be entered when extract_images=false; \
+         got {} decompression_started event(s)",
+        decompression_events.len()
+    );
+}
+
 /// `image_indices` on chunks must be empty when image extraction is disabled.
 #[cfg(feature = "chunking")]
 #[test]

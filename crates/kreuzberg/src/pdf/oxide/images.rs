@@ -28,6 +28,17 @@ pub(crate) fn extract_images_with_data(
     max_images_per_page: Option<u32>,
     cancel_token: Option<&CancellationToken>,
 ) -> Result<Vec<crate::types::ExtractedImage>> {
+    // When the cap is zero no image can ever pass through — skip decompression entirely.
+    if max_images_per_page == Some(0) {
+        return Ok(Vec::new());
+    }
+
+    tracing::debug!(
+        target: "kreuzberg::pdf::oxide::images",
+        event = "decompression_started",
+        "extract_images_with_data entered"
+    );
+
     let page_count = doc
         .doc
         .page_count()
@@ -53,6 +64,10 @@ pub(crate) fn extract_images_with_data(
         let limit = max_images_per_page.unwrap_or(u32::MAX) as usize;
         let count = oxide_images.len().min(limit);
 
+        // pdf_oxide::extract_images is eager: all images on the page are decompressed
+        // before this point. Applying .take(count) here caps returned count but cannot
+        // recover decompression cost for images beyond the cap. A count-limited upstream
+        // API is tracked in kreuzberg#989.
         for oxide_img in oxide_images.iter().take(count) {
             // Extract image data - use raw ImageData directly to avoid expensive conversions
             let (data, format) = match oxide_img.data() {
